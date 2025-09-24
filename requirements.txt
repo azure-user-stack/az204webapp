@@ -1,29 +1,44 @@
-Flask==2.3.3
-Flask-SQLAlchemy==2.5.1
-SQLAlchemy==1.4.53
-pyodbc==3.12.4
-Werkzeug==2.3.7
-Jinja2==3.1.2
-MarkupSafe==2.1.3
-itsdangerous==2.1.2
+# ===============================================
+# Flask Incidents Azure - Requirements
+# Version mise à jour avec les dépendances correctes
+# ===============================================
+
+# Framework Flask et extensions principales
+Flask==3.1.2
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.36
+pyodbc==5.2.0
+
+# Dépendances Flask automatiques (versions compatibles)
+Werkzeug==3.1.2
+Jinja2==3.1.4
+MarkupSafe==3.0.2
+itsdangerous==2.2.0
 click==8.1.7
+
+# Console couleur pour Windows
 colorama==0.4.6
 
-# Azure SQL Database specifiques
-azure-identity==1.15.0
-azure-keyvault-secrets==4.7.0
+# Azure SQL Database et authentification
+azure-identity==1.19.0
+azure-keyvault-secrets==4.8.0
 
-# Outils de développement et debug (optionnels)
-python-dotenv==1.0.0
+# Gestion des variables d'environnement
+python-dotenv==1.0.1
 
-# Compatibilité Python 3.13
-# IMPORTANT : SQLAlchemy 1.4.53 est requis pour Python 3.13
-# Ne pas utiliser SQLAlchemy 2.x ou 3.x avec Python 3.13
+# ===============================================
+# Notes de compatibilité
+# ===============================================
 
-# Installation avec pip :
+# Flask 3.1.2 : Version stable la plus récente
+# SQLAlchemy 2.0.36 : Version moderne avec support ORM amélioré  
+# pyodbc 5.2.0 : Driver ODBC le plus récent pour SQL Server
+# Flask-SQLAlchemy 3.1.1 : Compatible avec SQLAlchemy 2.x
+
+# Installation recommandée :
 # pip install -r requirements.txt
 
-# Pour pyodbc sur Windows, précompilé disponible :
+# Pour pyodbc sur Windows (si problèmes de compilation) :
 # pip install --only-binary=all pyodbc
 
 # Variables d'environnement requises :
