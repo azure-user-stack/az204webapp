@@ -1,0 +1,74 @@
+# ===============================================
+# .gitignore pour Flask Incidents Azure
+# ===============================================
+
+# Variables d'environnement sensibles
+.env
+.env.local
+.env.production
+
+# Fichiers Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+
+# Environnements virtuels
+venv/
+env/
+ENV/
+.venv/
+
+# IDE et éditeurs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Système d'exploitation
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Base de données locale (si elle existe)
+*.db
+*.sqlite
+*.sqlite3
+
+# Fichiers de configuration locale
+config.local.py
+local_settings.py
+
+# Certificats et clés
+*.pem
+*.key
+*.crt
+
+# Fichiers temporaires
+*.tmp
+*.temp
+
+# Dossiers de build et distribution
+build/
+dist/
+*.egg-info/
+
+# Coverage
+.coverage
+htmlcov/
+
+# pytest
+.pytest_cache/
+
+# Flask session
+flask_session/
+
+# Azure specific
+.azure/

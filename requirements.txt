@@ -1,0 +1,33 @@
+Flask==2.3.3
+Flask-SQLAlchemy==2.5.1
+SQLAlchemy==1.4.53
+pyodbc==3.12.4
+Werkzeug==2.3.7
+Jinja2==3.1.2
+MarkupSafe==2.1.3
+itsdangerous==2.1.2
+click==8.1.7
+colorama==0.4.6
+
+# Azure SQL Database specifiques
+azure-identity==1.15.0
+azure-keyvault-secrets==4.7.0
+
+# Outils de développement et debug (optionnels)
+python-dotenv==1.0.0
+
+# Compatibilité Python 3.13
+# IMPORTANT : SQLAlchemy 1.4.53 est requis pour Python 3.13
+# Ne pas utiliser SQLAlchemy 2.x ou 3.x avec Python 3.13
+
+# Installation avec pip :
+# pip install -r requirements.txt
+
+# Pour pyodbc sur Windows, précompilé disponible :
+# pip install --only-binary=all pyodbc
+
+# Variables d'environnement requises :
+# AZURE_SQL_SERVER=votre-serveur.database.windows.net
+# AZURE_SQL_DATABASE=votre-base-de-donnees
+# AZURE_SQL_USERNAME=votre-utilisateur
+# AZURE_SQL_PASSWORD=votre-mot-de-passe

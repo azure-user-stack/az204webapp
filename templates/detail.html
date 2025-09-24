@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ incident.titre }} - Détail Azure</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        .azure-header {
+            background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%);
+            color: white;
+            padding: 20px;
+            margin: -30px -30px 30px -30px;
+            border-radius: 15px 15px 0 0;
+            text-align: center;
+        }
+        .azure-header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .azure-header .subtitle {
+            margin-top: 5px;
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        .breadcrumb {
+            margin-bottom: 25px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #0078d4;
+        }
+        .breadcrumb a {
+            color: #0078d4;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+        .incident-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            border-left: 5px solid #0078d4;
+        }
+        .incident-title {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+        .incident-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .meta-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-top: 3px solid #0078d4;
+        }
+        .meta-label {
+            font-weight: bold;
+            color: #0078d4;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .meta-value {
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        .severity {
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-weight: bold;
+            text-transform: uppercase;
+            display: inline-block;
+        }
+        .severity-critique { background: #e74c3c; color: white; }
+        .severity-elevee { background: #f39c12; color: white; }
+        .severity-moyenne { background: #f1c40f; color: #333; }
+        .severity-faible { background: #2ecc71; color: white; }
+        .description-section {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            margin: 25px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 5px solid #0078d4;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #0078d4;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+        .description-text {
+            line-height: 1.8;
+            color: #34495e;
+            font-size: 16px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #17a2b8;
+        }
+        .azure-info {
+            background: #e8f4fd;
+            border: 1px solid #0078d4;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .azure-info h3 {
+            color: #0078d4;
+            margin-top: 0;
+        }
+        .azure-info .cloud-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 25px;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #0078d4, #106ebe);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 120, 212, 0.3);
+        }
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 120, 212, 0.4);
+            text-decoration: none;
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+            transform: translateY(-2px);
+            text-decoration: none;
+        }
+        .incident-id {
+            background: #0078d4;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .timestamp-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+        }
+        .timestamp-info strong {
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="azure-header">
+            <h1>☁️ Détail Incident Azure</h1>
+            <div class="subtitle">Données stockées dans Azure SQL Database</div>
+        </div>
+        
+        <div class="breadcrumb">
+            🏠 <a href="/">Accueil</a> › 📋 <a href="/">Liste des incidents</a> › 🔍 Détail incident
+        </div>
+        
+        <div class="azure-info">
+            <div class="cloud-icon">☁️</div>
+            <h3>Incident synchronisé avec Azure SQL Database</h3>
+            <p>Cette information est récupérée en temps réel depuis votre base de données cloud Azure</p>
+        </div>
+        
+        <div class="incident-header">
+            <div class="incident-id">ID: {{ incident.id }}</div>
+            <div class="incident-title">{{ incident.titre }}</div>
+            
+            <div class="incident-meta">
+                <div class="meta-item">
+                    <div class="meta-label">📅 Date d'incident</div>
+                    <div class="meta-value">
+                        {% if incident.date_incident is string %}
+                            {{ incident.date_incident }}
+                        {% else %}
+                            {{ incident.date_incident.strftime('%d/%m/%Y à %H:%M') }}
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="meta-item">
+                    <div class="meta-label">⚡ Sévérité</div>
+                    <div class="meta-value">
+                        <span class="severity severity-{{ incident.severite.lower() }}">
+                            {{ incident.severite }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="meta-item">
+                    <div class="meta-label">🏢 Source</div>
+                    <div class="meta-value">Azure SQL Database</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="description-section">
+            <div class="section-title">📝 Description détaillée</div>
+            <div class="description-text">
+                {{ incident.description or "Aucune description disponible pour cet incident." }}
+            </div>
+        </div>
+        
+        <div class="timestamp-info">
+            <strong>🕒 Informations de synchronisation :</strong><br>
+            Cette fiche incident a été récupérée depuis Azure SQL Database. 
+            Les données sont synchronisées en temps réel avec le cloud Microsoft Azure.
+        </div>
+        
+        <div class="actions">
+            <a href="/" class="btn btn-primary">⬅️ Retour à la liste</a>
+            <a href="/ajouter" class="btn btn-secondary">➕ Nouvel incident</a>
+            <a href="/azure-status" class="btn btn-secondary" target="_blank">🔧 Statut Azure</a>
+        </div>
+    </div>
+    
+    <script>
+        // Animation d'entrée
+        document.addEventListener('DOMContentLoaded', function() {
+            const elements = document.querySelectorAll('.incident-header, .description-section, .azure-info');
+            elements.forEach((el, index) => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                setTimeout(() => {
+                    el.style.transition = 'all 0.6s ease';
+                    el.style.opacity = '1';
+                    el.style.transform = 'translateY(0)';
+                }, index * 200);
+            });
+        });
+    </script>
+</body>
+</html>
