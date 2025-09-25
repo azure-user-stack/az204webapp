@@ -1,0 +1,58 @@
+# ===============================================
+# Flask Incidents Azure - Requirements
+# Version mise à jour avec support des fichiers et Azure Queue
+# ===============================================
+
+# Framework Flask et extensions principales
+Flask==3.1.2
+Flask-SQLAlchemy==3.1.1
+SQLAlchemy==2.0.36
+pyodbc==5.2.0
+
+# Configuration et variables d'environnement
+python-dotenv==1.0.1
+
+# Azure Services
+azure-storage-queue==12.9.0
+azure-storage-blob==12.19.0
+
+# Gestion des fichiers et sécurité
+secure-filename==0.1
+
+# Dépendances Flask automatiques (versions compatibles)
+Werkzeug==3.1.2
+Jinja2==3.1.4
+MarkupSafe==3.0.2
+itsdangerous==2.2.0
+click==8.1.7
+
+# Console couleur pour Windows
+colorama==0.4.6
+
+# Azure SQL Database et authentification
+azure-identity==1.19.0
+azure-keyvault-secrets==4.8.0
+
+# Gestion des variables d'environnement
+python-dotenv==1.0.1
+
+# ===============================================
+# Notes de compatibilité
+# ===============================================
+
+# Flask 3.1.2 : Version stable la plus récente
+# SQLAlchemy 2.0.36 : Version moderne avec support ORM amélioré  
+# pyodbc 5.2.0 : Driver ODBC le plus récent pour SQL Server
+# Flask-SQLAlchemy 3.1.1 : Compatible avec SQLAlchemy 2.x
+
+# Installation recommandée :
+# pip install -r requirements.txt
+
+# Pour pyodbc sur Windows (si problèmes de compilation) :
+# pip install --only-binary=all pyodbc
+
+# Variables d'environnement requises :
+# AZURE_SQL_SERVER=votre-serveur.database.windows.net
+# AZURE_SQL_DATABASE=votre-base-de-donnees
+# AZURE_SQL_USERNAME=votre-utilisateur
+# AZURE_SQL_PASSWORD=votre-mot-de-passe
