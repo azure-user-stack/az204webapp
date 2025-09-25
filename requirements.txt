@@ -1,6 +1,6 @@
 # ===============================================
 # Flask Incidents Azure - Requirements
-# Version mise à jour avec les dépendances correctes
+# Version mise à jour avec support des fichiers et Azure Queue
 # ===============================================
 
 # Framework Flask et extensions principales
@@ -8,6 +8,16 @@ Flask==3.1.2
 Flask-SQLAlchemy==3.1.1
 SQLAlchemy==2.0.36
 pyodbc==5.2.0
+
+# Configuration et variables d'environnement
+python-dotenv==1.0.1
+
+# Azure Services
+azure-storage-queue==12.9.0
+azure-storage-blob==12.19.0
+
+# Gestion des fichiers et sécurité
+secure-filename==0.1
 
 # Dépendances Flask automatiques (versions compatibles)
 Werkzeug==3.1.2

@@ -210,6 +210,86 @@
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-10px); }
         }
+        
+        /* Styles pour les fichiers joints */
+        .form-file {
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed #0078d4;
+            border-radius: 12px;
+            background: #f8f9ff;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .form-file:hover {
+            border-color: #106ebe;
+            background: #e6f3ff;
+        }
+        
+        .file-preview {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            display: none;
+        }
+        
+        .file-preview.show {
+            display: block;
+        }
+        
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .file-icon {
+            font-size: 20px;
+        }
+        
+        .file-details {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .file-name {
+            font-weight: bold;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .file-size {
+            color: #6c757d;
+            font-size: 12px;
+        }
+        
+        .file-remove {
+            background: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        
+        .file-remove:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 <body>
@@ -242,7 +322,7 @@
             {% endif %}
         {% endwith %}
         
-        <form method="POST" action="{{ url_for('ajouter_incident') }}" id="incidentForm">
+        <form method="POST" action="{{ url_for('ajouter_incident') }}" id="incidentForm" enctype="multipart/form-data">
             <div class="form-section">
                 <div class="section-title">📝 Informations de l'incident</div>
                 
@@ -287,6 +367,29 @@
                               maxlength="1000">{{ request.form.description or '' }}</textarea>
                     <div class="form-help">Description complète de l'incident (optionnel, max. 1000 caractères)</div>
                     <div class="char-counter" id="descCounter">0/1000</div>
+                </div>
+            </div>
+
+            <!-- Section pour les fichiers joints -->
+            <div class="form-section">
+                <div class="section-title">📎 Fichiers joints (optionnel)</div>
+                <div class="azure-info">
+                    <div class="azure-cloud-icon">☁️</div>
+                    <h4>Upload sécurisé dans Azure Storage</h4>
+                    <p>Joignez des captures d'écran, logs, documents ou tout fichier utile pour diagnostiquer l'incident.</p>
+                </div>
+                
+                <div class="form-group">
+                    <label for="attachments" class="form-label">
+                        📄 Sélectionner des fichiers
+                    </label>
+                    <input type="file" id="attachments" name="attachments" multiple 
+                           class="form-file" accept=".txt,.pdf,.png,.jpg,.jpeg,.gif,.doc,.docx,.xls,.xlsx,.zip,.rar,.7z,.log,.csv,.json,.xml">
+                    <div class="form-help">
+                        Types autorisés: Images (PNG, JPG, GIF), Documents (PDF, DOC, XLS), Archives (ZIP, RAR), Logs, etc.<br>
+                        Taille max par fichier: 10MB | Nombre max de fichiers: 5
+                    </div>
+                    <div id="filePreview" class="file-preview"></div>
                 </div>
             </div>
             
@@ -366,6 +469,108 @@
             }
         });
         
+        // Gestion des fichiers joints
+        let selectedFiles = [];
+        const maxFiles = 5;
+        const maxFileSize = 10 * 1024 * 1024; // 10MB
+        
+        document.getElementById('attachments').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files);
+            const preview = document.getElementById('filePreview');
+            
+            // Valider le nombre de fichiers
+            if (files.length > maxFiles) {
+                alert(`⚠️ Maximum ${maxFiles} fichiers autorisés !`);
+                this.value = '';
+                return;
+            }
+            
+            // Valider la taille de chaque fichier
+            let totalSize = 0;
+            for (let file of files) {
+                if (file.size > maxFileSize) {
+                    alert(`⚠️ Le fichier "${file.name}" est trop volumineux (max 10MB) !`);
+                    this.value = '';
+                    return;
+                }
+                totalSize += file.size;
+            }
+            
+            selectedFiles = files;
+            displayFilePreview();
+        });
+        
+        function displayFilePreview() {
+            const preview = document.getElementById('filePreview');
+            
+            if (selectedFiles.length === 0) {
+                preview.classList.remove('show');
+                return;
+            }
+            
+            preview.classList.add('show');
+            preview.innerHTML = '<h4>📎 Fichiers sélectionnés :</h4>';
+            
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                
+                const fileIcon = getFileIcon(file.name);
+                const fileSize = formatFileSize(file.size);
+                
+                fileItem.innerHTML = `
+                    <div class="file-info">
+                        <span class="file-icon">${fileIcon}</span>
+                        <div class="file-details">
+                            <span class="file-name">${file.name}</span>
+                            <span class="file-size">${fileSize}</span>
+                        </div>
+                    </div>
+                    <button type="button" class="file-remove" onclick="removeFile(${index})">✕</button>
+                `;
+                
+                preview.appendChild(fileItem);
+            });
+        }
+        
+        function removeFile(index) {
+            const dt = new DataTransfer();
+            const fileInput = document.getElementById('attachments');
+            
+            selectedFiles = selectedFiles.filter((_, i) => i !== index);
+            
+            for (let file of selectedFiles) {
+                dt.items.add(file);
+            }
+            
+            fileInput.files = dt.files;
+            displayFilePreview();
+        }
+        
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            const icons = {
+                'pdf': '📄',
+                'doc': '📝', 'docx': '📝',
+                'xls': '📊', 'xlsx': '📊',
+                'png': '🖼️', 'jpg': '🖼️', 'jpeg': '🖼️', 'gif': '🖼️',
+                'zip': '📦', 'rar': '📦', '7z': '📦',
+                'txt': '📃',
+                'log': '📋',
+                'csv': '📊',
+                'json': '🔧', 'xml': '🔧'
+            };
+            return icons[ext] || '📄';
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
         // Animation d'entrée
         document.addEventListener('DOMContentLoaded', function() {
             const elements = document.querySelectorAll('.azure-info, .form-section');

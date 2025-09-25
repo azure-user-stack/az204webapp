@@ -1,9 +1,24 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import urllib.parse
 import os
+import uuid
+import mimetypes
+import json
 from sqlalchemy import text
+from werkzeug.utils import secure_filename
+
+# Azure Queue Storage
+try:
+    from azure.storage.queue import QueueServiceClient, QueueClient
+    AZURE_QUEUE_AVAILABLE = True
+    print("✅ Module Azure Storage Queue disponible")
+except ImportError:
+    AZURE_QUEUE_AVAILABLE = False
+    print("⚠️ Module Azure Storage Queue non disponible")
+    QueueServiceClient = None
+    QueueClient = None
 
 # Charger les variables d'environnement depuis le fichier .env
 try:
@@ -14,6 +29,76 @@ except ImportError:
     print("⚠️  python-dotenv non installé, utilisation des variables système uniquement")
 
 app = Flask(__name__)
+
+# ========================================
+# CONFIGURATION AZURE QUEUE STORAGE
+# ========================================
+
+AZURE_STORAGE_CONNECTION_STRING = os.environ.get('AZURE_STORAGE_CONNECTION_STRING')
+AZURE_QUEUE_NAME = os.environ.get('AZURE_QUEUE_NAME', 'incidents-queue')
+
+# Initialisation du client Queue Storage
+queue_client = None
+if AZURE_QUEUE_AVAILABLE and AZURE_STORAGE_CONNECTION_STRING:
+    try:
+        queue_service_client = QueueServiceClient.from_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+        queue_client = queue_service_client.get_queue_client(AZURE_QUEUE_NAME)
+        
+        # Créer la queue si elle n'existe pas
+        queue_client.create_queue()
+        print(f"✅ Queue Azure '{AZURE_QUEUE_NAME}' initialisée")
+    except Exception as e:
+        print(f"⚠️ Erreur initialisation Queue Azure: {e}")
+        queue_client = None
+else:
+    print("⚠️ Azure Queue Storage non configuré - fonctionnalité désactivée")
+
+def send_to_azure_queue(incident_data, message_type="incident"):
+    """Envoyer un message vers Azure Queue Storage"""
+    if not queue_client:
+        print(f"⚠️ Queue Azure non disponible pour {message_type}")
+        return False
+    
+    try:
+        message = {
+            "type": message_type,
+            "timestamp": datetime.now().isoformat(),
+            "data": incident_data
+        }
+        
+        # Encoder le message en JSON puis en base64
+        import base64
+        message_json = json.dumps(message, ensure_ascii=False, default=str)
+        message_b64 = base64.b64encode(message_json.encode('utf-8')).decode('utf-8')
+        
+        # Envoyer le message
+        queue_client.send_message(message_b64)
+        print(f"✅ Message {message_type} envoyé vers Azure Queue")
+        return True
+        
+    except Exception as e:
+        print(f"❌ Erreur envoi vers Azure Queue: {e}")
+        return False
+
+# ========================================
+# CONFIGURATION FLASK ET UPLOAD
+# ========================================
+
+# Configuration pour les uploads de fichiers
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max
+app.config['UPLOAD_FOLDER'] = os.path.join(os.getcwd(), 'uploads')
+app.config['ALLOWED_EXTENSIONS'] = {
+    'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 
+    'xls', 'xlsx', 'zip', 'rar', '7z', 'log', 'csv', 'json', 'xml'
+}
+
+# Créer le dossier uploads s'il n'existe pas
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+def allowed_file(filename):
+    """Vérifier si l'extension du fichier est autorisée"""
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 # ========================================
 # CONFIGURATION AZURE SQL DATABASE
@@ -74,7 +159,12 @@ class Incident(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     titre = db.Column(db.String(200), nullable=False)
     severite = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text)
     date_incident = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Support des fichiers joints
+    has_attachments = db.Column(db.Boolean, default=False)
+    attachments_count = db.Column(db.Integer, default=0)
     
     def __repr__(self):
         return f'<Incident {self.id}: {self.titre}>'
@@ -85,7 +175,41 @@ class Incident(db.Model):
             'id': self.id,
             'titre': self.titre,
             'severite': self.severite,
-            'date_incident': self.date_incident.strftime('%Y-%m-%d %H:%M')
+            'description': self.description,
+            'date_incident': self.date_incident.strftime('%Y-%m-%d %H:%M'),
+            'has_attachments': self.has_attachments,
+            'attachments_count': self.attachments_count
+        }
+
+# Modèle pour les fichiers joints
+class IncidentAttachment(db.Model):
+    __tablename__ = 'incident_attachments'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    incident_id = db.Column(db.Integer, db.ForeignKey('incidents.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    file_path = db.Column(db.String(500), nullable=False)
+    file_size = db.Column(db.Integer, nullable=False)
+    mime_type = db.Column(db.String(100))
+    upload_date = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    
+    # Relation avec l'incident
+    incident = db.relationship('Incident', backref=db.backref('attachments', lazy=True))
+    
+    def __repr__(self):
+        return f'<IncidentAttachment {self.id}: {self.original_filename}>'
+    
+    def to_dict(self):
+        """Convertir en dictionnaire pour JSON"""
+        return {
+            'id': self.id,
+            'incident_id': self.incident_id,
+            'filename': self.filename,
+            'original_filename': self.original_filename,
+            'file_size': self.file_size,
+            'mime_type': self.mime_type,
+            'upload_date': self.upload_date.strftime('%Y-%m-%d %H:%M')
         }
 
 # ========================================
@@ -113,10 +237,12 @@ def ajouter_incident_form():
 
 @app.route('/ajouter-incident', methods=['POST'])
 def ajouter_incident():
-    """Traitement de l'ajout d'incident"""
+    """Traitement de l'ajout d'incident avec support des fichiers joints"""
     try:
+        # Récupérer les données du formulaire
         titre = request.form.get('titre', '').strip()
         severite = request.form.get('severite', 'Moyenne')
+        description = request.form.get('description', '').strip()
         
         if not titre:
             flash('Le titre de l\'incident est obligatoire', 'error')
@@ -126,15 +252,94 @@ def ajouter_incident():
         nouvel_incident = Incident(
             titre=titre,
             severite=severite,
-            date_incident=datetime.now()
+            description=description if description else None,
+            date_incident=datetime.now(),
+            has_attachments=False,
+            attachments_count=0
         )
         
-        # Sauvegarder dans Azure SQL
+        # Sauvegarder dans Azure SQL pour obtenir l'ID
         db.session.add(nouvel_incident)
+        db.session.flush()  # Pour obtenir l'ID sans commit
+        
+        # Traiter les fichiers joints s'il y en a
+        uploaded_files = request.files.getlist('attachments')
+        attachments_saved = 0
+        
+        if uploaded_files and uploaded_files[0].filename:  # Vérifier qu'il y a bien des fichiers
+            # Créer un dossier spécifique pour cet incident
+            incident_folder = os.path.join(app.config['UPLOAD_FOLDER'], f'incident_{nouvel_incident.id}')
+            os.makedirs(incident_folder, exist_ok=True)
+            
+            for file in uploaded_files:
+                if file.filename and allowed_file(file.filename):
+                    try:
+                        # Sécuriser le nom de fichier
+                        original_filename = secure_filename(file.filename)
+                        
+                        # Créer un nom unique pour éviter les conflits
+                        file_extension = os.path.splitext(original_filename)[1]
+                        unique_filename = f"{uuid.uuid4().hex}{file_extension}"
+                        
+                        # Chemin complet du fichier
+                        file_path = os.path.join(incident_folder, unique_filename)
+                        
+                        # Sauvegarder le fichier
+                        file.save(file_path)
+                        
+                        # Créer l'enregistrement en base
+                        attachment = IncidentAttachment(
+                            incident_id=nouvel_incident.id,
+                            filename=unique_filename,
+                            original_filename=original_filename,
+                            file_path=file_path,
+                            file_size=os.path.getsize(file_path),
+                            mime_type=mimetypes.guess_type(original_filename)[0],
+                            upload_date=datetime.now()
+                        )
+                        
+                        db.session.add(attachment)
+                        attachments_saved += 1
+                        
+                    except Exception as e:
+                        print(f"Erreur lors de la sauvegarde du fichier {file.filename}: {e}")
+                        # Continuer avec les autres fichiers
+        
+        # Mettre à jour l'incident avec les informations sur les fichiers
+        nouvel_incident.has_attachments = attachments_saved > 0
+        nouvel_incident.attachments_count = attachments_saved
+        
+        # Valider toutes les modifications
         db.session.commit()
         
-        flash(f'Incident "{titre}" ajouté avec succès dans Azure SQL Database!', 'success')
+        # Message de succès
+        if attachments_saved > 0:
+            flash(f'Incident "{titre}" ajouté avec succès avec {attachments_saved} fichier(s) joint(s)!', 'success')
+        else:
+            flash(f'Incident "{titre}" ajouté avec succès dans Azure SQL Database!', 'success')
+        
+        # Envoyer vers Azure Queue selon les scénarios
+        incident_dict = nouvel_incident.to_dict()
+        
+        # Scénario 1: Notifications pour incidents critiques
+        if severite == 'Critique':
+            print(f"🚨 Incident critique créé: {titre} - ID: {nouvel_incident.id}")
+            send_to_azure_queue(incident_dict, "critical_incident_notification")
+        
+        # Scénario 2: Rapports pour tous les incidents (traitement en arrière-plan)
+        send_to_azure_queue(incident_dict, "incident_analytics")
+        
+        # Scénario 4: Traitement des fichiers joints
+        if attachments_saved > 0:
+            file_processing_data = {
+                "incident_id": nouvel_incident.id,
+                "files_count": attachments_saved,
+                "attachments": [att.to_dict() for att in nouvel_incident.attachments]
+            }
+            send_to_azure_queue(file_processing_data, "file_processing")
+        
         return redirect(url_for('index'))
+        
         
     except Exception as e:
         db.session.rollback()
@@ -149,6 +354,27 @@ def detail_incident(incident_id):
         return render_template('detail.html', incident=incident)
     except Exception as e:
         flash(f'Erreur lors de la récupération de l\'incident: {str(e)}', 'error')
+        return redirect(url_for('index'))
+
+@app.route('/download/<int:attachment_id>')
+def download_attachment(attachment_id):
+    """Télécharger un fichier joint"""
+    try:
+        attachment = IncidentAttachment.query.get_or_404(attachment_id)
+        
+        # Vérifier que le fichier existe
+        if os.path.exists(attachment.file_path):
+            directory = os.path.dirname(attachment.file_path)
+            filename = os.path.basename(attachment.file_path)
+            return send_from_directory(directory, filename, 
+                                     as_attachment=True, 
+                                     download_name=attachment.original_filename)
+        else:
+            flash('Fichier non trouvé', 'error')
+            return redirect(url_for('detail_incident', incident_id=attachment.incident_id))
+            
+    except Exception as e:
+        flash(f'Erreur lors du téléchargement: {str(e)}', 'error')
         return redirect(url_for('index'))
 
 # ========================================
